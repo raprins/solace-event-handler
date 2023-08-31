@@ -1,7 +1,7 @@
 import { createServer } from "http"
 import express, { Request, Response } from "express"
 import MqttMessaging from "./lib/MqttMessaging.js"
-import AMQPMessaging from "./lib/AmqpMessaging.js"
+import AMQPMessaging from "./lib/AMQPMessaging.js"
 
 const app = express()
 const httpServer = createServer(app)
