@@ -6,5 +6,5 @@
     "ignore": [
         "src/**/*.spec.ts"
     ],
-    "exec": "ts-node-esm -r dotenv/config ./src/index.ts"
+    "exec": "ts-node-esm -r dotenv/config ./src/examples/index.ts"
 }

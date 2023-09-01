@@ -1,6 +1,7 @@
-import EventEmitter from "../shared/EventEmitter.js";
+
 import mqtt from "mqtt"
-import { MessagingEvents, MessagingOptions, MessagingSubscription } from "./Messaging.js";
+import { Messaging, MessagingConnectionOptions, MessagingEvents, MessagingOptions, MessagingSubscription } from "./Messaging.js";
+import { EventEmitter } from "@raprincis/utilities"
 
 
 const _defaultConnectionOptions: mqtt.IClientOptions = {
@@ -20,19 +21,19 @@ const _defaultConnectionOptions: mqtt.IClientOptions = {
 }
 
 
-export default class MqttMessaging extends EventEmitter<MessagingEvents> {
+export default class MQTTMessaging extends EventEmitter<MessagingEvents> implements Messaging {
 
     private _client: mqtt.MqttClient
-    private _options: mqtt.IClientOptions
+    private _clientOptions: mqtt.IClientOptions
 
-    private constructor(options: MessagingOptions) {
+    constructor(private options: MessagingOptions) {
         super()
 
         const { hostname, port, clientId, username, password } = options
 
         const host = `wss://${hostname}:${port}`
 
-        this._options = {
+        this._clientOptions = {
             ..._defaultConnectionOptions,
             host,
             username,
@@ -41,59 +42,24 @@ export default class MqttMessaging extends EventEmitter<MessagingEvents> {
         }
     }
 
-    static async create(options: MessagingOptions): Promise<MqttMessaging> {
-        const _messaging = new MqttMessaging(options)
-
-
-        if (options.handlers) {
-            const handlerKeys = Object.keys(options.handlers) as Array<keyof MessagingEvents>
-            handlerKeys.forEach(key => _messaging.on(key, options.handlers[key]))
-        }
-
-        await _messaging.connect()
-
-        if (options.subscriptions) {
-
-
-            let subscriptions: string[] = []
-
-            if (Array.isArray(options.subscriptions)) {
-
-                subscriptions = options.subscriptions!
-                    .map((sub: string | MessagingSubscription) => {
-                        return typeof sub === "string" ? sub : sub.subscription
-                    })
-
-            } else {
-                subscriptions = [options.subscriptions]
-            }
-
-            await _messaging.subscribe(subscriptions)
-        }
-
-        return _messaging
-    }
-
-    async connect(): Promise<void> {
-
-
-
+    async connect(credential: MessagingConnectionOptions): Promise<void> {
         return new Promise((res, rej) => {
 
             if (!this._client) {
-                this._client = mqtt.connect(this._options.host, this._options)
-                this._client.once("connect", (args) => {
-                    this.emit("connected")
-                    res()
-                }).on("message", (topic, payload, packet) => {
-                    this.emit("message", {
-                        subscription: {
-                            subscription: topic,
-                            type: "topic"
-                        },
-                        payload
+                this._client = mqtt.connect(this._clientOptions.host, this._clientOptions)
+                this._client
+                    .once("connect", (args) => {
+                        this.emit("connected")
+                        res()
+                    }).on("message", (topic, payload, packet) => {
+                        this.emit("message", {
+                            subscription: {
+                                name: topic,
+                                type: "topic"
+                            },
+                            payload
+                        })
                     })
-                })
 
             } else {
 
@@ -111,19 +77,26 @@ export default class MqttMessaging extends EventEmitter<MessagingEvents> {
      * @param topic 
      * @returns 
      */
-    async subscribe(topic: string | string[]): Promise<void> {
-
+    async subscribe(subscription: string | MessagingSubscription): Promise<void> { 
         if (!this._client) {
-            await this.connect()
+            await this.connect(this.options)
         }
 
         return new Promise((resolve, reject) => {
-            this._client.subscribe(topic, {
+            
+            if (typeof subscription !== "string" && subscription.type === "queue") return reject(`Could not Subscribe to a Queue`)
+
+            this._client.subscribe(typeof subscription === "string" ? subscription : subscription.name, {
                 qos: 2
             }, (error, granted) => {
                 if (error) {
                     reject()
                 } else {
+                    
+                    granted.forEach(({ topic : name }) => {
+                        this.emit("subscribed", { name , type : "topic"})
+                    })
+
                     resolve()
                 }
             })
@@ -156,6 +129,4 @@ export default class MqttMessaging extends EventEmitter<MessagingEvents> {
             })
         })
     }
-
-
 }

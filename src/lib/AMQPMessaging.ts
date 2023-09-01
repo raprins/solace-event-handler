@@ -1,96 +1,45 @@
-import EventEmitter from "../shared/EventEmitter.js"
-import { MessagingEvents, MessagingOptions, MessagingSubscription } from "./Messaging.js"
+
+import { EventEmitter } from "@raprincis/utilities"
+import { Messaging, MessagingConnectionOptions, MessagingEvents, MessagingOptions, MessagingSubscription } from "./Messaging.js"
 import rhea from "rhea"
 
-
-
-
-export default class AMQPMessaging extends EventEmitter<MessagingEvents> {
+/**
+ * Define AMQP Messaging for Pub/Sub
+ */
+export default class AMQPMessaging extends EventEmitter<MessagingEvents> implements Messaging {
 
     private _container: rhea.Container
     private _connection: rhea.Connection
 
-    private constructor(private options: MessagingOptions) {
+    constructor(private options: MessagingOptions) {
         super()
 
         this._container = rhea.create_container({
             id: this.options.clientId
         })
-
-
-
     }
 
-    static async create(options: MessagingOptions): Promise<AMQPMessaging> {
-        const _messaging = new AMQPMessaging(options)
-
-        if (options.handlers) {
-            const handlerKeys = Object.keys(options.handlers) as Array<keyof MessagingEvents>
-            handlerKeys.forEach(key => _messaging.on(key, options.handlers[key]))
-        }
-
-        await _messaging.connect()
-
-        if (options.subscriptions) {
-
-
-            let subscriptions: string[] = []
-
-            if (Array.isArray(options.subscriptions)) {
-
-                subscriptions = options.subscriptions!
-                    .map((sub: string | MessagingSubscription) => {
-                        return typeof sub === "string" ? sub : sub.subscription
-                    })
-
-            } else {
-                subscriptions = [options.subscriptions]
-            }
-
-            await Promise.all(subscriptions.map(s => _messaging.subscribe(s)))
-
-        }
-
-        return _messaging
-    }
-
-    async connect(): Promise<void> {
+    async connect(credential: MessagingConnectionOptions): Promise<void> {
 
         return new Promise((res, rej) => {
 
             this._container.once("connection_open", () => {
                 this.emit("connected")
                 res()
-
             })
+                .on("accepted", () => console.log("Connection accepted >>>"))
+
+            const { hostname: host, port, username, password, clientId: id } = credential
 
             this._connection = this._container.connect({
-                host: "mr-connection-khfudno04b4.messaging.solace.cloud",
-                port: 5671,
-                username: this.options.username,
-                password: this.options.password,
+                host,
+                port,
+                username,
+                password,
                 transport: "tls",
-                container_id: this._container.id
+                container_id: this._container.id,
+                id
             })
-
-            /*
-            this._connection.on('message',  (context: rhea.EventContext) => {
-                if (context.message.body === 'detach') {
-                    // detaching leaves the subscription active, so messages sent
-                    // while detached are kept until we attach again
-                    context.receiver.detach();
-                    context.connection.close();
-                } else if (context.message.body === 'close') {
-                    // closing cancels the subscription
-                    context.receiver.close();
-                    context.connection.close();
-                } else {
-                    
-                    console.log("AMQP", context.receiver.name);
-                    
-                }
-            })
-            */
         })
     }
 
@@ -101,10 +50,10 @@ export default class AMQPMessaging extends EventEmitter<MessagingEvents> {
      */
     async subscribe(sub: string | MessagingSubscription): Promise<void> {
 
-        const subscription:MessagingSubscription = typeof sub === "string" ? {
-            subscription: sub,
-            type : "queue"
-        }: sub
+        const subscription: MessagingSubscription = typeof sub === "string" ? {
+            name: sub,
+            type: "queue"
+        } : sub
 
 
         return new Promise((resolve, reject) => {
@@ -115,17 +64,17 @@ export default class AMQPMessaging extends EventEmitter<MessagingEvents> {
             })
 
 
-            const address:string = subscription.type === "queue" ? subscription.subscription: `topic://${subscription.subscription}`
-            
+            const address: string = subscription.type === "queue" ? subscription.name : `topic://${subscription.name}`
+
             const receiver = this._connection.open_receiver({
                 //name: "something",
-                name: subscription.subscription,
+                name: subscription.name,
                 source: {
                     address, durable: 2, expiry_policy: 'never'
                 }
             })
 
-            receiver.on('message',  (context: rhea.EventContext) => {
+            receiver.on('message', (context: rhea.EventContext) => {
                 if (context.message.body === 'detach') {
                     // detaching leaves the subscription active, so messages sent
                     // while detached are kept until we attach again
@@ -136,29 +85,20 @@ export default class AMQPMessaging extends EventEmitter<MessagingEvents> {
                     context.receiver.close();
                     context.connection.close();
                 } else {
-                    
-                    console.log("AMQP", context.receiver.name);
-                    
+                    this.emit("message", {
+                        subscription,
+                        payload: Buffer.from(context.message.body)
+                    })
                 }
             })
-            
-
-
-        })
-
-    }
-
-    async unsubscribe(topic: string): Promise<void> {
-        return new Promise((resolve, reject) => {
-
         })
     }
 
-    async publish(topic: string, message: string): Promise<void> {
-        return new Promise((resolve, reject) => {
-
-        })
+    unsubscribe(topic: string): Promise<void> {
+        throw new Error("Method not implemented.")
     }
 
-
+    publish(topic: string, message: string): Promise<void> {
+        throw new Error("Method not implemented.")
+    }
 }
