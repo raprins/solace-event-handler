@@ -5,9 +5,5 @@ export default defineConfig({
   clean: true,
   dts: true,
   format: ["esm", "cjs"],
-  outExtension: ({ format }) => {
-    return {
-      js: `.${format}.js`
-    }
-  },
+  legacyOutput: true
 })

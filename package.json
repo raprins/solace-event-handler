@@ -1,6 +1,6 @@
 {
   "name": "@raprincis/messaging-handler",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Pub/Sub to Solace Event Handler",
   "main": "dist/index.js",
   "module": "dist/esm/index.js",
@@ -16,6 +16,7 @@
     "url": "https://github.com/raprins/solace-event-handler.git"
   },
   "keywords": [
+    "solace",
     "MQTT",
     "AMQP",
     "Messaging"
