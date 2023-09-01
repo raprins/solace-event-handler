@@ -1,9 +1,9 @@
 {
   "name": "@raprincis/messaging-handler",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Pub/Sub to Solace Event Handler",
-  "main": "dist/index.js",
-  "module": "dist/esm/index.js",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": ["dist"],
   "type": "module",
