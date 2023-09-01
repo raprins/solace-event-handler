@@ -2,14 +2,14 @@ import { MessagingConnectionOptions, MessagingEventHandlers, MessagingFactory, M
 
 const defaultConnection: MessagingConnectionOptions = {
     clientId: 'raprincis',
-    hostname: process.env.SOLACE_HOSTNAME,
-    port: parseInt(process.env.SOLACE_AMQP_PORT, 10),
-    username: process.env.SOLACE_USERNAME,
-    password: process.env.SOLACE_PASSWORD,
+    hostname: process.env.SOLACE_HOSTNAME!,
+    port: parseInt(process.env.SOLACE_AMQP_PORT!, 10),
+    username: process.env.SOLACE_USERNAME!,
+    password: process.env.SOLACE_PASSWORD!
 }
 
-const createHandler  = (messagingType: MessagingType): MessagingEventHandlers => ({
-    connected () {
+const createHandler = (messagingType: MessagingType): MessagingEventHandlers => ({
+    connected() {
         console.log(`[${messagingType}] - Connected`);
     },
     subscribed({ name, type }) {
@@ -21,7 +21,7 @@ const createHandler  = (messagingType: MessagingType): MessagingEventHandlers =>
 })
 
 
-const amqp = await MessagingFactory.create("AMQP", {
+MessagingFactory.create("AMQP", {
     ...defaultConnection,
     subscriptions: [{
         name: 'myQueue', type: 'queue'
@@ -29,11 +29,15 @@ const amqp = await MessagingFactory.create("AMQP", {
         name: 'weather', type: 'topic'
     }],
     handlers: createHandler("AMQP")
+}).then((amqp) => {
+
 })
 
-const mqtt = await MessagingFactory.create("MQTT", {
+MessagingFactory.create("MQTT", {
     ...defaultConnection,
-    port: parseInt(process.env.SOLACE_MQTT_PORT, 10),
+    port: parseInt(process.env.SOLACE_MQTT_PORT!, 10),
     subscriptions: ["try-me"],
     handlers: createHandler("MQTT")
+}).then(mqtt => {
+
 })
